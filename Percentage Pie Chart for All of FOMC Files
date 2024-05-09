@@ -1,0 +1,50 @@
+library(ggplot2)
+library(dplyr)
+
+# Create a data frame
+data <- data.frame(
+  Date = as.Date(c(
+    "2024-01-01", "2023-02-01", "2023-03-01", "2023-05-01", "2023-06-01",
+    "2023-07-01", "2023-09-01", "2023-11-01", "2023-12-01", "2022-01-01",
+    "2022-03-01", "2022-05-01", "2022-06-01", "2022-07-01", "2022-09-01",
+    "2022-11-01", "2022-12-01", "2021-01-01", "2021-03-01", "2021-04-01",
+    "2021-06-01", "2021-07-01", "2021-09-01", "2021-11-01", "2021-12-01",
+    "2020-01-01", "2020-03-03", "2020-03-15", "2020-03-23", "2020-04-01",
+    "2020-06-01", "2020-07-01", "2020-09-01", "2020-11-01", "2020-12-01",
+    "2019-01-01", "2019-03-01", "2019-05-01", "2019-06-01", "2019-07-01",
+    "2019-09-01", "2019-10-11", "2019-10-30", "2019-12-01")),
+  Positive = c(
+    60, 54.5, 54.5, 54.5, 70, 54.5, 60, 60, 45.5, 50, 45.5, 41.7, 54.5,
+    66.7, 63.6, 41.7, 41.7, 69.2, 41.7, 33.3, 38.5, 30.8, 38.5, 46.7, 53.8,
+    38.5, 60, 56.2, 50, 54.5, 58.3, 75, 53.8, 41.7, 41.7, 70, 54.5, 63.6,
+    54.5, 41.7, 58.3, 70, 46.2, 50),
+  Negative = c(
+    40, 45.5, 45.5, 45.5, 30, 45.5, 40, 40, 54.5, 50, 54.5, 58.3, 45.5,
+    33.3, 36.4, 58.3, 58.3, 30.8, 58.3, 66.7, 61.5, 69.2, 61.5, 53.3, 46.2,
+    61.5, 40, 43.8, 50, 45.5, 41.7, 25, 46.2, 58.3, 58.3, 30, 45.5, 36.4,
+    45.5, 58.3, 41.7, 30, 53.8, 50)
+)
+
+# Calculate the total of positive and negative sentiments
+total_positive <- sum(data$Positive)
+total_negative <- sum(data$Negative)
+
+# Create a data frame containing the totals
+summary_data <- data.frame(
+  Sentiment = c("Positive", "Negative"),
+  Total = c(total_positive, total_negative)
+)
+
+# Add percentage labels
+summary_data$Percent <- summary_data$Total / sum(summary_data$Total) * 100
+
+# Create a pie chart
+pie_chart <- ggplot(summary_data, aes(x = "", y = Total, fill = Sentiment)) +
+  geom_bar(stat = "identity", width = 1) +
+  coord_polar("y", start = 0) +
+  labs(title = "Total Sentiment of FOMC Files") +
+  scale_fill_manual(values = c("Green", "Orange")) +
+  theme_void()
+
+# Add percentage labels to the pie chart
+pie_chart + geom_text(aes(label = paste(round(Percent, 1), "%")), position = position_stack(vjust = 0.5))
