@@ -1,0 +1,63 @@
+library(readxl)
+data<-load("C:/Users/DELL/Desktop/mhcld_puf_2019_r.rdata")
+data1 <- get(data)
+sum<-sum(data1$ALCSUBFLG)
+print(sum)
+excel_file <-"C:/Users/DELL/Desktop/Jong-Min Python/2020"
+my_data <- read_excel(excel_file)
+
+head(my_data, 6)
+
+library("ggpubr")
+ggscatter(my_data, x = "Period Positive", y = "Depressive disorder reported", 
+          add = "reg.line", conf.int = TRUE, 
+          cor.coef = TRUE, cor.method = "pearson",
+          xlab = "Period Positive", ylab = "Alcohol or substance-related disorder reported")
+ggscatter(my_data, x = "Period Positive", y = "Depressive disorder reported", 
+          add = "reg.line", conf.int = TRUE, 
+          cor.coef = TRUE, cor.method = "pearson",
+          xlab = "Period Positive", ylab = "Depressive disorder reported")
+  cor(my_data$`Period Positive`,my_data$`Depressive disorder reported`, method = c("pearson", "kendall", "spearman"))
+shapiro.test(my_data$`Period Positive`)
+shapiro.test(my_data$`Expense`)
+ggscatter(my_data, x = "Period Negative", y = "Depressive disorder reported", 
+          add = "reg.line", conf.int = TRUE, 
+          cor.coef = TRUE, cor.method = "pearson",
+          xlab = "Period Negative", ylab = "Anxiety disorder reported")
+cor(my_data$`Period Negative`,my_data$`Depressive disorder reported`, method = c("pearson", "kendall", "spearman"))
+ggscatter(my_data, x = "Sentiment Index", y = "Depressive disorder reported", 
+          add = "reg.line", conf.int = TRUE, 
+          cor.coef = TRUE, cor.method = "pearson",
+          xlab = "Sentiment Index", ylab = "Depressive disorder reported")
+cor(my_data$`Sentiment Index`,my_data$`Depressive disorder reported`, method = c("pearson", "kendall", "spearman"))
+
+library(ggplot2)
+# Convert the "Period" column to a numeric format (extract year)
+my_data$Year <- as.numeric(gsub("Q[1-4] ", "", my_data$Period))
+
+# Remove rows with NA values
+my_data <- my_data[!is.na(my_data$Year), ]
+
+# Proceed with plotting
+ggplot(my_data, aes(x = Year, y = `Period Positive`)) +
+  geom_point() +
+  geom_smooth(method = "lm") +
+  labs(x = "Year", y = "Period Positive")
+
+
+
+# Assuming 'Year' is the column representing time
+ggplot(my_data, aes(x = Year, y = `Period Positive`)) +
+  geom_point() +
+  geom_smooth(method = "lm") +
+  labs(x = "Period", y = "Positive")
+
+ggplot(my_data, aes(x = Period, y = `Period Negative`)) +
+  geom_point() +
+  geom_smooth(method = "lm") +
+  labs(x = "Period", y = "Negative")
+
+ggplot(my_data, aes(x = Period, y = `Sentiment Index`)) +
+  geom_point() +
+  geom_smooth(method = "lm") +
+  labs(x = "Period", y = "Sentimental Index")
