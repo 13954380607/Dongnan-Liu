@@ -1,0 +1,40 @@
+import PyPDF2
+from wordcloud import WordCloud
+from wordcloud import STOPWORDS
+import matplotlib.pyplot as plt
+
+# String containing the file path
+file_paths_str = r"C:/Users/DELL/Desktop/Research Data/2019.1.30.pdf"
+
+# Use the split() method to break the string into individual file paths
+file_paths = file_paths_str.split('\n')
+
+# Initialize a variable to store all text content
+all_text = ''
+
+# Iterate over each file path
+for pdf_file_path in file_paths:
+    # Open the PDF file
+    with open(pdf_file_path, 'rb') as pdf_file:
+        # Create a PDF file reader object
+        pdf_reader = PyPDF2.PdfReader(pdf_file)
+
+        # Read the text content of each page
+        for page_num in range(len(pdf_reader.pages)):
+            page = pdf_reader.pages[page_num]
+            all_text += page.extract_text()
+
+# Clean up the text data (further processing can be done as needed)
+# For example, remove newline characters, extra spaces, etc.
+all_text = all_text.replace('\n', ' ')
+
+# Generate a word cloud
+stop_words = ["https", "co", "RT"] + list(STOPWORDS)
+wordcloud = WordCloud(max_font_size=50, max_words=100, background_color="white", stopwords=stop_words).generate(all_text)
+
+# Display the word cloud
+plt.figure()
+plt.title("Word Cloud for 2024")
+plt.imshow(wordcloud, interpolation="bilinear")
+plt.axis("off")
+plt.show()
