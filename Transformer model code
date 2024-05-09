@@ -1,0 +1,38 @@
+from transformers import pipeline 
+import pdfplumber
+import pandas as pd
+import matplotlib.pyplot as plt
+
+# Define a function to extract text from a PDF
+def extract_text_from_pdf(pdf_file_path):
+    with pdfplumber.open(pdf_file_path) as pdf:
+        text = ""
+        for page in pdf.pages:
+            text += page.extract_text()
+    return text
+
+# Load a pre-trained sentiment analysis model
+sentiment_pipeline = pipeline("sentiment-analysis")
+
+# Extract text from the PDF
+pdf_file_path = "C:/Users/DELL/Desktop/2023/2023.2.1.pdf"
+text = extract_text_from_pdf(pdf_file_path)
+
+# Split the text into smaller chunks
+max_chunk_size = 512
+text_chunks = [text[i:i+max_chunk_size] for i in range(0, len(text), max_chunk_size)]
+
+# Perform sentiment analysis on each chunk
+results = []
+for chunk in text_chunks:
+    result = sentiment_pipeline(chunk)
+    results.extend(result)
+
+# Store the results in a DataFrame
+df = pd.DataFrame(results)
+
+# Visualize the results
+sentiment_counts = df['label'].value_counts()
+sentiment_counts.plot(kind='pie', autopct='%1.1f%%', colors=['green', 'red', 'gray'])
+plt.title('Sentiment Distribution')
+plt.show()
