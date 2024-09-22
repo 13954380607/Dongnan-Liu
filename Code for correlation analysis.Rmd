@@ -1,0 +1,564 @@
+---
+title: "Codes for Additional  Statistical Analysis about comparing the Relationship between Magnificent Seven stocks and the Fomc sentimental index with Medical companies"
+author: "Dongnan Liu"
+date: "2024-09-14"
+output: html_document
+---
+
+
+
+#Figure 8
+```{r}
+# Load necessary libraries
+library(ggplot2)
+library(dplyr)
+
+# List of company file paths (replace with your actual file paths)
+company_files <- list(
+   "Alphabet" = "C:/Users/DELL/Downloads/GOOG Historical Data.csv",
+  "Amazon" = "C:/Users/DELL/Downloads/AMZN Historical Data.csv",
+  "Apple" = "C:/Users/DELL/Downloads/AAPL Historical Data.csv",
+  "Meta Platforms" = "C:/Users/DELL/Downloads/META Historical Data.csv",
+  "Microsoft" = "C:/Users/DELL/Downloads/MSFT Historical Data.csv",
+  "NVIDIA" = "C:/Users/DELL/Downloads/NVDA Historical Data.csv",
+  "Tesla" = "C:/Users/DELL/Downloads/TSLA Historical Data.csv"
+  # "UNH" = "C:/Users/DELL/Downloads/UNH Historical Data (2).csv",
+ # "CVS" = "C:/Users/DELL/Downloads/CVS Historical Data (1).csv",
+  #"Pfizer" = "C:/Users/DELL/Downloads/PFE Historical Data.csv",
+  #"Roche" = "C:/Users/DELL/Downloads/ROG Historical Data.csv",
+  #"Abbott Laboratories" = "C:/Users/DELL/Downloads/ABT Historical Data.csv",
+ # "Stryker Corp"="C:/Users/DELL/Downloads/SYK Historical Data.csv",
+ # "Eli Lilly and Company"="C:/Users/DELL/Downloads/LLY Historical Data.csv",
+ # "Intuitive Surgical"="C:/Users/DELL/Downloads/ISRG Historical Data (2).csv"
+)
+
+# Create an empty list to store the data for each company
+all_data <- list()
+
+# Loop through each company file and process the data
+for (company in names(company_files)) {
+  # Load the stock data for each company
+  stock_data <- read.csv(company_files[[company]])
+
+  # Convert 'Date' to Date format and sort the data
+  stock_data$Date <- as.Date(stock_data$Date, format="%m/%d/%Y")
+  stock_data <- stock_data %>% arrange(Date)
+
+  # Convert 'Change %' to numeric if needed (uncomment if relevant)
+  # stock_data$Change_percent <- as.numeric(gsub('%', '', stock_data$Change..)) / 100
+
+  # Group by month and calculate the end-of-month prices
+  stock_data$Month <- format(stock_data$Date, "%Y-%m")
+  end_of_month_prices <- stock_data %>%
+    group_by(Month) %>%
+    summarize(Price = last(Price))
+
+  # Create the sentiment index dataframe (same for all companies)
+  si_data <- data.frame(
+    Time = as.Date(c('2019-01-01', '2019-03-01', '2019-05-01', '2019-06-01', '2019-07-01', '2019-09-01', 
+                     '2019-10-01', '2020-01-01', '2020-03-01', '2020-04-01', '2020-06-01', '2020-07-01', 
+                     '2020-09-01', '2020-11-01', '2020-12-01', '2021-01-01', '2021-03-01', '2021-04-01', 
+                     '2021-06-01', '2021-07-01', '2021-09-01', '2021-11-01', '2021-12-01', '2022-03-01', 
+                     '2022-05-01', '2022-06-01', '2022-07-01', '2022-09-01', '2022-11-01', '2022-12-01', 
+                     '2023-02-01', '2023-03-01', '2023-05-01', '2023-06-01', '2023-07-01', '2023-09-01', 
+                     '2023-11-01', '2023-12-01', '2024-01-01', '2024-05-01', '2024-06-01', '2024-07-01')),
+    SI = c(0.4, 0.09, 0.27, 0.09, -0.17, 0.17, 0.16, -0.23, 0.11, 0.09, 0.17, 0.5, 0.08, -0.17, -0.17, 
+           0.38, -0.17, -0.33, -0.23, -0.38, -0.23, -0.07, 0.08, -0.09, -0.17, 0.09, 0.33, 0.27, -0.17, 
+           -0.17, 0.09, 0.09, 0.09, 0.4, 0.09, 0.2, 0.2, -0.09, 0.2, -0.17, 0.2, 0.09)
+  )
+
+  # Calculate log returns before the Fed meeting
+  log_returns_corrected <- c()
+
+  for (i in 1:nrow(si_data)) {
+    meeting_time <- si_data$Time[i]
+    
+    # Calculate two months before the meeting
+    two_months_before <- as.Date(seq(meeting_time, length = 2, by = "-2 months")[2])
+    three_months_before <- as.Date(seq(meeting_time, length = 2, by = "-3 months")[2])
+    
+    # Get the end-of-month prices for these two months
+    price_two_months_before <- end_of_month_prices$Price[end_of_month_prices$Month == format(two_months_before, "%Y-%m")]
+    price_three_months_before <- end_of_month_prices$Price[end_of_month_prices$Month == format(three_months_before, "%Y-%m")]
+    
+    # Correct log return calculation: ln(Price T-1 / Price T-2)
+    if (length(price_two_months_before) > 0 && length(price_three_months_before) > 0) {
+      log_return_corrected <- log(price_two_months_before / price_three_months_before)
+      log_returns_corrected <- c(log_returns_corrected, log_return_corrected)
+    } else {
+      log_returns_corrected <- c(log_returns_corrected, NA)
+    }
+  }
+
+  # Update the dataframe with the corrected log returns before the Fed meeting
+  si_data$Corrected_Log_Return_Before_Fed_Meeting <- log_returns_corrected
+
+  # Calculate log returns after the Fed meeting
+  log_returns_after <- c()
+
+  for (i in 1:nrow(si_data)) {
+    meeting_time <- si_data$Time[i]
+    
+    # Calculate one and two months after the meeting
+    one_month_after <- as.Date(seq(meeting_time, length = 2, by = "+1 months")[2])
+    two_months_after <- as.Date(seq(meeting_time, length = 2, by = "+2 months")[2])
+    
+    # Get the end-of-month prices for these two months
+    price_one_month_after <- end_of_month_prices$Price[end_of_month_prices$Month == format(one_month_after, "%Y-%m")]
+    price_two_months_after <- end_of_month_prices$Price[end_of_month_prices$Month == format(two_months_after, "%Y-%m")]
+    
+    # Correct log return calculation: ln(Price T+2 / Price T+1)
+    if (length(price_one_month_after) > 0 && length(price_two_months_after) > 0) {
+      log_return_after <- log(price_two_months_after / price_one_month_after)
+      log_returns_after <- c(log_returns_after, log_return_after)
+    } else {
+      log_returns_after <- c(log_returns_after, NA)
+    }
+  }
+
+  # Update the dataframe with the log returns after the Fed meeting
+  si_data$Corrected_Log_Return_After_Fed_Meeting <- log_returns_after
+
+  # Add company name to the data
+  si_data$Company <- company
+
+  # Add the company's data to the list
+  all_data[[company]] <- si_data
+}
+
+# Combine all company data into a single data frame
+combined_data <- do.call(rbind, all_data)
+
+# Step 3: Generate the plots with different companies
+
+# Plot 1: Log Return Before Fed Meeting vs Sentiment Index
+ggplot(combined_data, aes(x = Corrected_Log_Return_Before_Fed_Meeting, y = SI, color = Company)) +
+  geom_point() +
+  geom_smooth(method = "loess", se = FALSE) +
+  labs(title = "Log Return Before Fed Meeting vs Sentiment Index for Medical Companies",
+       x = "Log Return (Before Fed Meeting)",
+       y = "Sentiment Index") +
+  theme_minimal()
+
+# Plot 2: Log Return After Fed Meeting vs Sentiment Index
+ggplot(combined_data, aes(x = Corrected_Log_Return_After_Fed_Meeting, y = SI, color = Company)) +
+  geom_point() +
+  geom_smooth(method = "loess", se = FALSE) +
+  labs(title = "Log Return After Fed Meeting vs Sentiment Index for Medical Companies",
+       x = "Log Return (After Fed Meeting)",
+       y = "Sentiment Index") +
+  theme_minimal()
+```
+
+
+
+
+```{r}
+# Load necessary libraries
+library(ggplot2)
+library(dplyr)
+
+# List of company file paths (replace with your actual file paths)
+company_files <- list(
+   "UNH" = "C:/Users/DELL/Downloads/UNH Historical Data (2).csv",
+  "CVS" = "C:/Users/DELL/Downloads/CVS Historical Data (1).csv",
+  "Pfizer" = "C:/Users/DELL/Downloads/PFE Historical Data.csv",
+  "Roche" = "C:/Users/DELL/Downloads/ROG Historical Data.csv",
+  "Abbott Laboratories" = "C:/Users/DELL/Downloads/ABT Historical Data.csv",
+  "Stryker Corp"="C:/Users/DELL/Downloads/SYK Historical Data.csv",
+  "Eli Lilly and Company"="C:/Users/DELL/Downloads/LLY Historical Data.csv",
+  "Intuitive Surgical"="C:/Users/DELL/Downloads/ISRG Historical Data (2).csv"
+  #"Alphabet" = "C:/Users/DELL/Downloads/GOOG Historical Data.csv",
+  #"Amazon" = "C:/Users/DELL/Downloads/AMZN Historical Data.csv",
+ # "Apple" = "C:/Users/DELL/Downloads/AAPL Historical Data.csv",
+ # "Meta Platforms" = "C:/Users/DELL/Downloads/META Historical Data.csv",
+  #"Microsoft" = "C:/Users/DELL/Downloads/MSFT Historical Data.csv",
+ # "NVIDIA" = "C:/Users/DELL/Downloads/NVDA Historical Data.csv",
+  #"Tesla" = "C:/Users/DELL/Downloads/TSLA Historical Data.csv"
+)
+
+# Create an empty list to store the data for each company
+all_data <- list()
+
+# Define the fixed Sentiment Index data based on your input
+si_data <- data.frame(
+  Time = as.Date(c('2019-01-01', '2019-03-01', '2019-05-01', '2019-06-01', '2019-07-01', '2019-09-01', 
+                   '2019-10-01', '2020-01-01', '2020-03-01', '2020-04-01', '2020-06-01', '2020-07-01', 
+                   '2020-09-01', '2020-11-01', '2020-12-01', '2021-01-01', '2021-03-01', '2021-04-01', 
+                   '2021-06-01', '2021-07-01', '2021-09-01', '2021-11-01', '2021-12-01', '2022-03-01', 
+                   '2022-05-01', '2022-06-01', '2022-07-01', '2022-09-01', '2022-11-01', '2022-12-01', 
+                   '2023-02-01', '2023-03-01', '2023-05-01', '2023-06-01', '2023-07-01', '2023-09-01', 
+                   '2023-11-01', '2023-12-01', '2024-01-01', '2024-05-01', '2024-06-01', '2024-07-01')),
+  SI = c(0.4, 0.09, 0.27, 0.09, -0.17, 0.17, 0.16, -0.23, 0.11, 0.09, 0.17, 0.5, 0.08, -0.17, -0.17, 
+         0.38, -0.17, -0.33, -0.23, -0.38, -0.23, -0.07, 0.08, -0.09, -0.17, 0.09, 0.33, 0.27, -0.17, 
+         -0.17, 0.09, 0.09, 0.09, 0.4, 0.09, 0.2, 0.2, -0.09, 0.2, -0.17, 0.2, 0.09)
+)
+
+# Loop through each company file and process the data
+for (company in names(company_files)) {
+  message(paste("Loading data for", company))
+  stock_data <- read.csv(company_files[[company]])
+
+  # Convert 'Date' to Date format and sort the data
+  stock_data$Date <- as.Date(stock_data$Date, format="%m/%d/%Y")
+  stock_data <- stock_data %>% arrange(Date)
+
+  # Calculate end-of-month prices
+  stock_data$Month <- format(stock_data$Date, "%Y-%m")
+  end_of_month_prices <- stock_data %>%
+    group_by(Month) %>%
+    summarize(Price = last(Price))
+  message("Calculated end-of-month prices")
+
+  # Calculate log returns before the Fed meeting
+  log_returns_corrected <- c()
+  for (i in 1:nrow(si_data)) {
+    meeting_time <- si_data$Time[i]
+    
+    # Calculate two months before the meeting
+    two_months_before <- as.Date(seq(meeting_time, length = 2, by = "-2 months")[2])
+    three_months_before <- as.Date(seq(meeting_time, length = 2, by = "-3 months")[2])
+    
+    # Get the end-of-month prices for these two months
+    price_two_months_before <- end_of_month_prices$Price[end_of_month_prices$Month == format(two_months_before, "%Y-%m")]
+    price_three_months_before <- end_of_month_prices$Price[end_of_month_prices$Month == format(three_months_before, "%Y-%m")]
+    
+    # Correct log return calculation: ln(Price T-1 / Price T-2)
+    if (length(price_two_months_before) > 0 && length(price_three_months_before) > 0) {
+      log_return_corrected <- log(price_two_months_before / price_three_months_before)
+      log_returns_corrected <- c(log_returns_corrected, log_return_corrected)
+    } else {
+      log_returns_corrected <- c(log_returns_corrected, NA)
+    }
+  }
+  si_data$Corrected_Log_Return_Before_Fed_Meeting <- log_returns_corrected
+
+  # Calculate log returns after the Fed meeting
+  log_returns_after <- c()
+  for (i in 1:nrow(si_data)) {
+    meeting_time <- si_data$Time[i]
+    
+    # Calculate one and two months after the meeting
+    one_month_after <- as.Date(seq(meeting_time, length = 2, by = "+1 months")[2])
+    two_months_after <- as.Date(seq(meeting_time, length = 2, by = "+2 months")[2])
+    
+    # Get the end-of-month prices for these two months
+    price_one_month_after <- end_of_month_prices$Price[end_of_month_prices$Month == format(one_month_after, "%Y-%m")]
+    price_two_months_after <- end_of_month_prices$Price[end_of_month_prices$Month == format(two_months_after, "%Y-%m")]
+    
+    # Correct log return calculation: ln(Price T+2 / Price T+1)
+    if (length(price_one_month_after) > 0 && length(price_two_months_after) > 0) {
+      log_return_after <- log(price_two_months_after / price_one_month_after)
+      log_returns_after <- c(log_returns_after, log_return_after)
+    } else {
+      log_returns_after <- c(log_returns_after, NA)
+    }
+  }
+  si_data$Corrected_Log_Return_After_Fed_Meeting <- log_returns_after
+
+  # Add company name to the data
+  si_data$Company <- company
+
+  # Add the company's data to the list
+  all_data[[company]] <- si_data
+}
+
+# Combine all company data into a single data frame
+combined_data <- do.call(rbind, all_data)
+
+# Generate individual plots for each company using facet_wrap
+
+# Plot 1: Log Return Before Fed Meeting vs Sentiment Index for each company
+ggplot(combined_data, aes(x = Corrected_Log_Return_Before_Fed_Meeting, y = SI)) +
+  geom_point(aes(color = Company)) +
+  geom_smooth(method = "loess", se = FALSE, color = "black") +
+  facet_wrap(~ Company, scales = "free") +
+  labs(title = "Log Return Before Fed Meeting vs Sentiment Index Across Medical Companies",
+       x = "Log Return (Before Fed Meeting)",
+       y = "Sentiment Index") +
+  theme_minimal()
+
+# Plot 2: Log Return After Fed Meeting vs Sentiment Index for each company
+ggplot(combined_data, aes(x = Corrected_Log_Return_After_Fed_Meeting, y = SI)) +
+  geom_point(aes(color = Company)) +
+  geom_smooth(method = "loess", se = FALSE, color = "black") +
+  facet_wrap(~ Company, scales = "free") +
+  labs(title = "Log Return After Fed Meeting vs Sentiment Index Across Medical Companies",
+       x = "Log Return (After Fed Meeting)",
+       y = "Sentiment Index") +
+  theme_minimal()
+
+
+```
+
+
+
+#Granger Causality Test for Medical Companies
+```{r}
+# Load necessary libraries
+library(ggplot2)
+library(dplyr)
+library(lmtest)
+
+# List of company file paths (replace with your actual file paths)
+company_files <- list(
+   "UNH" = "C:/Users/DELL/Downloads/UNH Historical Data (2).csv",
+  "CVS" = "C:/Users/DELL/Downloads/CVS Historical Data (1).csv",
+  "Pfizer" = "C:/Users/DELL/Downloads/PFE Historical Data.csv",
+  "Roche" = "C:/Users/DELL/Downloads/ROG Historical Data.csv",
+  "Abbott Laboratories" = "C:/Users/DELL/Downloads/ABT Historical Data.csv",
+  "Stryker Corp"="C:/Users/DELL/Downloads/SYK Historical Data.csv",
+  "Eli Lilly and Company"="C:/Users/DELL/Downloads/LLY Historical Data.csv",
+  "Intuitive Surgical"="C:/Users/DELL/Downloads/ISRG Historical Data (2).csv"
+)
+
+# Create an empty list to store the data for each company
+all_data <- list()
+
+# Define the fixed Sentiment Index data based on your input
+si_data <- data.frame(
+  Time = as.Date(c('2019-01-01', '2019-03-01', '2019-05-01', '2019-06-01', '2019-07-01', '2019-09-01', 
+                   '2019-10-01', '2020-01-01', '2020-03-01', '2020-04-01', '2020-06-01', '2020-07-01', 
+                   '2020-09-01', '2020-11-01', '2020-12-01', '2021-01-01', '2021-03-01', '2021-04-01', 
+                   '2021-06-01', '2021-07-01', '2021-09-01', '2021-11-01', '2021-12-01', '2022-03-01', 
+                   '2022-05-01', '2022-06-01', '2022-07-01', '2022-09-01', '2022-11-01', '2022-12-01', 
+                   '2023-02-01', '2023-03-01', '2023-05-01', '2023-06-01', '2023-07-01', '2023-09-01', 
+                   '2023-11-01', '2023-12-01', '2024-01-01', '2024-05-01', '2024-06-01', '2024-07-01')),
+  SI = c(0.4, 0.09, 0.27, 0.09, -0.17, 0.17, 0.16, -0.23, 0.11, 0.09, 0.17, 0.5, 0.08, -0.17, -0.17, 
+         0.38, -0.17, -0.33, -0.23, -0.38, -0.23, -0.07, 0.08, -0.09, -0.17, 0.09, 0.33, 0.27, -0.17, 
+         -0.17, 0.09, 0.09, 0.09, 0.4, 0.09, 0.2, 0.2, -0.09, 0.2, -0.17, 0.2, 0.09)
+)
+
+# Loop through each company file and process the data
+for (company in names(company_files)) {
+  message(paste("Loading data for", company))
+  stock_data <- read.csv(company_files[[company]])
+
+  # Convert 'Date' to Date format and sort the data
+  stock_data$Date <- as.Date(stock_data$Date, format="%m/%d/%Y")
+  stock_data <- stock_data %>% arrange(Date)
+
+  # Calculate end-of-month prices
+  stock_data$Month <- format(stock_data$Date, "%Y-%m")
+  end_of_month_prices <- stock_data %>%
+    group_by(Month) %>%
+    summarize(Price = last(Price))
+  message("Calculated end-of-month prices")
+
+  # Calculate log returns before the Fed meeting
+  log_returns_corrected <- c()
+  for (i in 1:nrow(si_data)) {
+    meeting_time <- si_data$Time[i]
+    
+    # Calculate two months before the meeting
+    two_months_before <- as.Date(seq(meeting_time, length = 2, by = "-2 months")[2])
+    three_months_before <- as.Date(seq(meeting_time, length = 2, by = "-3 months")[2])
+    
+    # Get the end-of-month prices for these two months
+    price_two_months_before <- end_of_month_prices$Price[end_of_month_prices$Month == format(two_months_before, "%Y-%m")]
+    price_three_months_before <- end_of_month_prices$Price[end_of_month_prices$Month == format(three_months_before, "%Y-%m")]
+    
+    # Correct log return calculation: ln(Price T-1 / Price T-2)
+    if (length(price_two_months_before) > 0 && length(price_three_months_before) > 0) {
+      log_return_corrected <- log(price_two_months_before / price_three_months_before)
+      log_returns_corrected <- c(log_returns_corrected, log_return_corrected)
+    } else {
+      log_returns_corrected <- c(log_returns_corrected, NA)
+    }
+  }
+  si_data$Corrected_Log_Return_Before_Fed_Meeting <- log_returns_corrected
+
+  # Calculate log returns after the Fed meeting
+  log_returns_after <- c()
+  for (i in 1:nrow(si_data)) {
+    meeting_time <- si_data$Time[i]
+    
+    # Calculate one and two months after the meeting
+    one_month_after <- as.Date(seq(meeting_time, length = 2, by = "+1 months")[2])
+    two_months_after <- as.Date(seq(meeting_time, length = 2, by = "+2 months")[2])
+    
+    # Get the end-of-month prices for these two months
+    price_one_month_after <- end_of_month_prices$Price[end_of_month_prices$Month == format(one_month_after, "%Y-%m")]
+    price_two_months_after <- end_of_month_prices$Price[end_of_month_prices$Month == format(two_months_after, "%Y-%m")]
+    
+    # Correct log return calculation: ln(Price T+2 / Price T+1)
+    if (length(price_one_month_after) > 0 && length(price_two_months_after) > 0) {
+      log_return_after <- log(price_two_months_after / price_one_month_after)
+      log_returns_after <- c(log_returns_after, log_return_after)
+    } else {
+      log_returns_after <- c(log_returns_after, NA)
+    }
+  }
+  si_data$Corrected_Log_Return_After_Fed_Meeting <- log_returns_after
+
+  # Add company name to the data
+  si_data$Company <- company
+
+  # Add the company's data to the list
+  all_data[[company]] <- si_data
+}
+
+# Combine all company data into a single data frame
+combined_data <- do.call(rbind, all_data)
+
+# Convert the necessary columns into time series format
+log_return_before <- ts(combined_data$Corrected_Log_Return_Before_Fed_Meeting)
+log_return_after <- ts(combined_data$Corrected_Log_Return_After_Fed_Meeting)
+sentiment_index <- ts(combined_data$SI)
+
+# Granger Causality Test - Sentiment Index Granger-causes Stock Log Return (Before FOMC Meeting)
+granger_test_before <- grangertest(log_return_before ~ sentiment_index, order = 3)
+print("Granger Test (Sentiment Index -> Log Return Before Meeting)")
+print(granger_test_before)
+
+# Granger Causality Test - Stock Log Return (Before FOMC Meeting) Granger-causes Sentiment Index
+granger_test_reverse_before <- grangertest(sentiment_index ~ log_return_before, order = 3)
+print("Granger Test (Log Return Before Meeting -> Sentiment Index)")
+print(granger_test_reverse_before)
+
+# Granger Causality Test - Sentiment Index Granger-causes Stock Log Return (After FOMC Meeting)
+granger_test_after <- grangertest(log_return_after ~ sentiment_index, order = 3)
+print("Granger Test (Sentiment Index -> Log Return After Meeting)")
+print(granger_test_after)
+
+# Granger Causality Test - Stock Log Return (After FOMC Meeting) Granger-causes Sentiment Index
+granger_test_reverse_after <- grangertest(sentiment_index ~ log_return_after, order = 3)
+print("Granger Test (Log Return After Meeting -> Sentiment Index)")
+print(granger_test_reverse_after)
+```
+
+
+
+#Granger Causality Test for the Magnificent Seven
+```{r}
+# Load necessary libraries
+library(ggplot2)
+library(dplyr)
+library(lmtest)
+
+# List of company file paths (replace with your actual file paths)
+company_files <- list(
+    "Alphabet" = "C:/Users/DELL/Downloads/GOOG Historical Data.csv",
+  "Amazon" = "C:/Users/DELL/Downloads/AMZN Historical Data.csv",
+  "Apple" = "C:/Users/DELL/Downloads/AAPL Historical Data.csv",
+  "Meta Platforms" = "C:/Users/DELL/Downloads/META Historical Data.csv",
+  "Microsoft" = "C:/Users/DELL/Downloads/MSFT Historical Data.csv",
+  "NVIDIA" = "C:/Users/DELL/Downloads/NVDA Historical Data.csv",
+  "Tesla" = "C:/Users/DELL/Downloads/TSLA Historical Data.csv"
+)
+
+# Create an empty list to store the data for each company
+all_data <- list()
+
+# Define the fixed Sentiment Index data based on your input
+si_data <- data.frame(
+  Time = as.Date(c('2019-01-01', '2019-03-01', '2019-05-01', '2019-06-01', '2019-07-01', '2019-09-01', 
+                   '2019-10-01', '2020-01-01', '2020-03-01', '2020-04-01', '2020-06-01', '2020-07-01', 
+                   '2020-09-01', '2020-11-01', '2020-12-01', '2021-01-01', '2021-03-01', '2021-04-01', 
+                   '2021-06-01', '2021-07-01', '2021-09-01', '2021-11-01', '2021-12-01', '2022-03-01', 
+                   '2022-05-01', '2022-06-01', '2022-07-01', '2022-09-01', '2022-11-01', '2022-12-01', 
+                   '2023-02-01', '2023-03-01', '2023-05-01', '2023-06-01', '2023-07-01', '2023-09-01', 
+                   '2023-11-01', '2023-12-01', '2024-01-01', '2024-05-01', '2024-06-01', '2024-07-01')),
+  SI = c(0.4, 0.09, 0.27, 0.09, -0.17, 0.17, 0.16, -0.23, 0.11, 0.09, 0.17, 0.5, 0.08, -0.17, -0.17, 
+         0.38, -0.17, -0.33, -0.23, -0.38, -0.23, -0.07, 0.08, -0.09, -0.17, 0.09, 0.33, 0.27, -0.17, 
+         -0.17, 0.09, 0.09, 0.09, 0.4, 0.09, 0.2, 0.2, -0.09, 0.2, -0.17, 0.2, 0.09)
+)
+
+# Loop through each company file and process the data
+for (company in names(company_files)) {
+  message(paste("Loading data for", company))
+  stock_data <- read.csv(company_files[[company]])
+
+  # Convert 'Date' to Date format and sort the data
+  stock_data$Date <- as.Date(stock_data$Date, format="%m/%d/%Y")
+  stock_data <- stock_data %>% arrange(Date)
+
+  # Calculate end-of-month prices
+  stock_data$Month <- format(stock_data$Date, "%Y-%m")
+  end_of_month_prices <- stock_data %>%
+    group_by(Month) %>%
+    summarize(Price = last(Price))
+  message("Calculated end-of-month prices")
+
+  # Calculate log returns before the Fed meeting
+  log_returns_corrected <- c()
+  for (i in 1:nrow(si_data)) {
+    meeting_time <- si_data$Time[i]
+    
+    # Calculate two months before the meeting
+    two_months_before <- as.Date(seq(meeting_time, length = 2, by = "-2 months")[2])
+    three_months_before <- as.Date(seq(meeting_time, length = 2, by = "-3 months")[2])
+    
+    # Get the end-of-month prices for these two months
+    price_two_months_before <- end_of_month_prices$Price[end_of_month_prices$Month == format(two_months_before, "%Y-%m")]
+    price_three_months_before <- end_of_month_prices$Price[end_of_month_prices$Month == format(three_months_before, "%Y-%m")]
+    
+    # Correct log return calculation: ln(Price T-1 / Price T-2)
+    if (length(price_two_months_before) > 0 && length(price_three_months_before) > 0) {
+      log_return_corrected <- log(price_two_months_before / price_three_months_before)
+      log_returns_corrected <- c(log_returns_corrected, log_return_corrected)
+    } else {
+      log_returns_corrected <- c(log_returns_corrected, NA)
+    }
+  }
+  si_data$Corrected_Log_Return_Before_Fed_Meeting <- log_returns_corrected
+
+  # Calculate log returns after the Fed meeting
+  log_returns_after <- c()
+  for (i in 1:nrow(si_data)) {
+    meeting_time <- si_data$Time[i]
+    
+    # Calculate one and two months after the meeting
+    one_month_after <- as.Date(seq(meeting_time, length = 2, by = "+1 months")[2])
+    two_months_after <- as.Date(seq(meeting_time, length = 2, by = "+2 months")[2])
+    
+    # Get the end-of-month prices for these two months
+    price_one_month_after <- end_of_month_prices$Price[end_of_month_prices$Month == format(one_month_after, "%Y-%m")]
+    price_two_months_after <- end_of_month_prices$Price[end_of_month_prices$Month == format(two_months_after, "%Y-%m")]
+    
+    # Correct log return calculation: ln(Price T+2 / Price T+1)
+    if (length(price_one_month_after) > 0 && length(price_two_months_after) > 0) {
+      log_return_after <- log(price_two_months_after / price_one_month_after)
+      log_returns_after <- c(log_returns_after, log_return_after)
+    } else {
+      log_returns_after <- c(log_returns_after, NA)
+    }
+  }
+  si_data$Corrected_Log_Return_After_Fed_Meeting <- log_returns_after
+
+  # Add company name to the data
+  si_data$Company <- company
+
+  # Add the company's data to the list
+  all_data[[company]] <- si_data
+}
+
+# Combine all company data into a single data frame
+combined_data <- do.call(rbind, all_data)
+
+# Convert the necessary columns into time series format
+log_return_before <- ts(combined_data$Corrected_Log_Return_Before_Fed_Meeting)
+log_return_after <- ts(combined_data$Corrected_Log_Return_After_Fed_Meeting)
+sentiment_index <- ts(combined_data$SI)
+
+# Granger Causality Test - Sentiment Index Granger-causes Stock Log Return (Before FOMC Meeting)
+granger_test_before <- grangertest(log_return_before ~ sentiment_index, order = 3)
+print("Granger Test (Sentiment Index -> Log Return Before Meeting)")
+print(granger_test_before)
+
+# Granger Causality Test - Stock Log Return (Before FOMC Meeting) Granger-causes Sentiment Index
+granger_test_reverse_before <- grangertest(sentiment_index ~ log_return_before, order = 3)
+print("Granger Test (Log Return Before Meeting -> Sentiment Index)")
+print(granger_test_reverse_before)
+
+# Granger Causality Test - Sentiment Index Granger-causes Stock Log Return (After FOMC Meeting)
+granger_test_after <- grangertest(log_return_after ~ sentiment_index, order = 3)
+print("Granger Test (Sentiment Index -> Log Return After Meeting)")
+print(granger_test_after)
+
+# Granger Causality Test - Stock Log Return (After FOMC Meeting) Granger-causes Sentiment Index
+granger_test_reverse_after <- grangertest(sentiment_index ~ log_return_after, order = 3)
+print("Granger Test (Log Return After Meeting -> Sentiment Index)")
+print(granger_test_reverse_after)
+```
+
